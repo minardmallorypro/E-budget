@@ -1,7 +1,3 @@
-/**
- * EBudget AI - Core Engine v4.0 (Perfect Edition)
- */
-
 const SUPABASE_URL = 'https://dsambzdkakpztmsfwxee.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_a37NCM5-9B2J8tcNYDn9kw_eaqC5o0A';
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -10,27 +6,46 @@ let state = {
     isLogin: true,
     user: null,
     step: 0,
-    data: { foyer: 1, revenus: 0, charges: 0, choices: [] },
+    data: { 
+        foyer: 1, 
+        situation: '', 
+        objectif: '',
+        revenus: 0, 
+        aides: 0,
+        loyer: 0,
+        courses: 0,
+        charges: 0
+    },
     bilan: null
 };
 
-// --- AUTH & SECURITY ---
+// --- AUTHENTIFICATION ---
+async function signInWithGoogle() {
+    const { error } = await _supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: window.location.origin }
+    });
+    if (error) alert("Erreur Google : " + error.message);
+}
+
+function toggleAuthMode() {
+    state.isLogin = !state.isLogin;
+    document.getElementById('auth-title').innerText = state.isLogin ? "Accès Sécurisé" : "Créer un profil";
+    document.getElementById('btn-auth-primary').innerText = state.isLogin ? "Se connecter" : "S'inscrire";
+    document.getElementById('auth-toggle').innerText = state.isLogin ? "Pas encore de compte ? Créer un profil" : "Déjà membre ? Se connecter";
+}
+
 async function processAuth() {
     const email = document.getElementById('auth-email').value.trim();
     const password = document.getElementById('auth-password').value;
-
-    if(!email || password.length < 6) return alert("Veuillez entrer un email valide et un mot de passe (min 6 car.).");
-
-    let result;
-    if(state.isLogin) {
-        result = await _supabase.auth.signInWithPassword({ email, password });
-    } else {
-        result = await _supabase.auth.signUp({ email, password });
-        alert("Vérifiez vos emails pour confirmer l'inscription.");
-    }
+    if(!email || password.length < 6) return alert("Email et mot de passe requis.");
+    
+    let result = state.isLogin ? 
+        await _supabase.auth.signInWithPassword({ email, password }) : 
+        await _supabase.auth.signUp({ email, password });
     
     if(result.error) alert(result.error.message);
-    else checkSession();
+    else if(state.isLogin) checkSession();
 }
 
 async function checkSession() {
@@ -41,46 +56,47 @@ async function checkSession() {
         document.getElementById('auth-status').classList.remove('hidden');
         showView('view-dashboard');
         loadHistory();
-        
-        // Reprise automatique si analyse en cours
-        const saved = localStorage.getItem(`draft_${state.user.id}`);
-        if(saved) {
-            if(confirm("Reprendre votre analyse en cours ?")) {
-                const parsed = JSON.parse(saved);
-                state.step = parsed.step;
-                state.data = parsed.data;
-                showView('view-quiz');
-                renderStep();
-            } else {
-                localStorage.removeItem(`draft_${state.user.id}`);
-            }
-        }
     }
 }
 
-async function forgotPassword() {
-    const email = prompt("Entrez votre email pour recevoir un lien de réinitialisation :");
-    if(email) {
-        const { error } = await _supabase.auth.resetPasswordForEmail(email);
-        alert(error ? error.message : "Lien envoyé !");
-    }
-}
-
-// --- QUIZ DATA & LOGIC ---
+// --- CONFIGURATION DES QUESTIONS ---
 const steps = [
-    { id: 'foyer', text: "Composition du foyer", desc: "Combien de personnes dépendent de ce budget ?", icon: 'fa-users', type: 'input' },
-    { id: 'salaire', text: "Revenus cumulés", desc: "Total des revenus nets mensuels (Salaires, aides actuelles, etc.)", icon: 'fa-wallet', type: 'input' },
-    { id: 'loyer', text: "Logement", desc: "Loyer mensuel ou mensualité de crédit immobilier.", icon: 'fa-house', type: 'input', cat: 'char' },
-    { id: 'auto', text: "Transport", desc: "Possédez-vous un véhicule ?", icon: 'fa-car', type: 'choice' },
-    { id: 'auto_val', text: "Frais auto", desc: "Assurance, carburant et entretien estimé.", icon: 'fa-gas-pump', type: 'input', cat: 'char', dep: 'auto' },
-    { id: 'credit', text: "Prêts en cours", desc: "Avez-vous des crédits à la consommation ?", icon: 'fa-credit-card', type: 'choice' },
-    { id: 'credit_val', text: "Dettes", desc: "Mensualité totale prélevée.", icon: 'fa-euro-sign', type: 'input', cat: 'char', dep: 'credit' },
-    { id: 'epargne', text: "Objectif Épargne", desc: "Voulez-vous sécuriser 15% de revenus pour vos projets ?", icon: 'fa-piggy-bank', type: 'choice' }
+    { 
+        id: 'objectif', 
+        text: "Pourquoi ce test ?", 
+        desc: "J'adapterai mes conseils selon votre but.", 
+        icon: 'fa-bullseye', 
+        type: 'select', 
+        options: [
+            {val: 'difficulte', label: 'Je suis en difficulté'},
+            {val: 'gestion', label: 'Mieux gérer mon budget'},
+            {val: 'projet', label: 'Préparer un projet'}
+        ] 
+    },
+    { 
+        id: 'situation', 
+        text: "Situation Pro", 
+        desc: "Votre statut actuel ?", 
+        icon: 'fa-user-tie', 
+        type: 'select', 
+        options: [
+            {val: 'cdi', label: 'CDI'},
+            {val: 'cdd', label: 'CDD / Intérim'},
+            {val: 'etudiant', label: 'Étudiant'},
+            {val: 'chomage', label: 'Recherche d\'emploi'}
+        ] 
+    },
+    { id: 'foyer', text: "Votre foyer", desc: "Combien de personnes ?", icon: 'fa-users', type: 'input' },
+    { id: 'revenus', text: "Salaires nets", desc: "Total des revenus avant aides.", icon: 'fa-briefcase', type: 'input' },
+    { id: 'aides', text: "Aides actuelles", desc: "CAF, APL, bourses...", icon: 'fa-hand-holding-dollar', type: 'input' },
+    { id: 'loyer', text: "Logement", desc: "Loyer ou mensualité crédit.", icon: 'fa-house', type: 'input' },
+    { id: 'courses', text: "Courses", desc: "Alimentation et hygiène par mois.", icon: 'fa-cart-shopping', type: 'input' },
+    { id: 'charges', text: "Autres charges", desc: "Énergie, transport, abonnements.", icon: 'fa-bolt', type: 'input' }
 ];
 
 function startQuiz() {
     state.step = 0;
-    state.data = { foyer: 1, revenus: 0, charges: 0, choices: [] };
+    state.data = { foyer: 1, situation: '', objectif: '', revenus: 0, aides: 0, loyer: 0, courses: 0, charges: 0 };
     showView('view-quiz');
     renderStep();
 }
@@ -89,113 +105,101 @@ function renderStep() {
     const s = steps[state.step];
     if(!s) return calculateResults();
 
-    if(s.dep && !state.data.choices.includes(s.dep)) {
-        state.step++; return renderStep();
-    }
-
-    // Sauvegarde auto du brouillon
-    localStorage.setItem(`draft_${state.user.id}`, JSON.stringify({ step: state.step, data: state.data }));
-
     document.getElementById('progress-bar').style.width = `${(state.step / steps.length) * 100}%`;
     document.getElementById('q-text').innerText = s.text;
     document.getElementById('q-desc').innerText = s.desc;
     document.getElementById('q-icon').innerHTML = `<i class="fa-solid ${s.icon}"></i>`;
     
-    const isInput = s.type === 'input';
-    document.getElementById('input-wrap').classList.toggle('hidden', !isInput);
-    document.getElementById('btn-next').classList.toggle('hidden', !isInput);
-    document.getElementById('dual-btns').classList.toggle('hidden', isInput);
-    document.getElementById('q-input').value = "";
+    const inputWrap = document.getElementById('input-wrap');
+    const dualBtns = document.getElementById('dual-btns');
+    const btnNext = document.getElementById('btn-next');
+
+    if (s.type === 'select') {
+        inputWrap.classList.add('hidden');
+        btnNext.classList.add('hidden');
+        dualBtns.classList.remove('hidden');
+        dualBtns.innerHTML = s.options.map(opt => 
+            `<button onclick="handleSelection('${s.id}', '${opt.val}')" class="btn btn-outline" style="margin-bottom:10px">${opt.label}</button>`
+        ).join('');
+    } else {
+        inputWrap.classList.remove('hidden');
+        btnNext.classList.remove('hidden');
+        dualBtns.classList.add('hidden');
+        document.getElementById('q-input').value = "";
+    }
+}
+
+function handleSelection(key, value) {
+    state.data[key] = value;
+    state.step++;
+    renderStep();
 }
 
 document.getElementById('btn-next').onclick = () => {
     const val = parseFloat(document.getElementById('q-input').value) || 0;
-    
-    // Validation intelligente
-    if(val < 0) return alert("Veuillez entrer un montant positif.");
-    
     const s = steps[state.step];
-    if(s.id === 'foyer') state.data.foyer = val || 1;
-    else if(s.cat === 'char') state.data.charges += val;
-    else state.data.revenus += val;
-
+    state.data[s.id] = val;
     state.step++;
     renderStep();
 };
 
-function handleChoice(yes) {
-    if(yes) state.data.choices.push(steps[state.step].id);
-    state.step++;
-    renderStep();
-}
-
-// --- INTELLIGENCE & CALCULS ---
+// --- ANALYSE IA ET AIDES ---
 function calculateResults() {
-    localStorage.removeItem(`draft_${state.user.id}`);
     showView('view-results');
-    
-    // Simulation aides sociales (Estimation IA)
-    let aides = state.data.revenus < 2900 ? Math.round((2900 - state.data.revenus) * 0.14 * state.data.foyer) : 0;
-    
-    // Epargne de projet
-    const epargne = state.data.choices.includes('epargne') ? Math.round((state.data.revenus + aides) * 0.15) : 0;
-    
-    // Calcul forfaitaire du coût de la vie (alimentation, hygiène, etc.)
-    const coutVie = state.data.foyer * 230; 
-    
-    const resteFinal = Math.round(state.data.revenus + aides - state.data.charges - epargne - coutVie);
+    const totalIn = state.data.revenus + state.data.aides;
+    const totalOut = state.data.loyer + state.data.courses + state.data.charges;
+    const reste = Math.round(totalIn - totalOut);
+    const epargne = Math.round(totalIn * 0.10);
 
-    state.bilan = { res: resteFinal, save: epargne, help: aides, date: new Date().toLocaleDateString() };
-
-    document.getElementById('res-total').innerText = `${resteFinal}€`;
+    document.getElementById('res-total').innerText = `${reste}€`;
     document.getElementById('res-save').innerText = `${epargne}€`;
-    document.getElementById('res-aides').innerText = `+${aides}€`;
+    document.getElementById('res-aides').innerText = `${state.data.aides}€`;
 
-    // Conseils IA
-    let advice = "";
-    const chargeRatio = (state.data.charges / (state.data.revenus + aides)) * 100;
+    // Moteur d'IA
+    let advice = `<b>${state.data.objectif === 'difficulte' ? "⚠️ Diagnostic Prioritaire" : "💡 Conseil Stratégique"} :</b> `;
+    
+    if(reste < 0) advice += "Votre budget est en déséquilibre. Réduisez les charges non-essentielles immédiatement. ";
+    else if(state.data.situation === 'cdi') advice += "Votre stabilité en CDI permet d'envisager une épargne automatique. ";
+    else advice += "Prévoyez une épargne de sécurité plus large à cause de la variabilité de vos revenus. ";
 
-    if(resteFinal < 0) advice = "⚠️ Risque de découvert : Vos charges et besoins vitaux dépassent vos entrées. Priorisez la réduction de vos abonnements et évitez tout nouveau crédit.";
-    else if(chargeRatio > 40) advice = "📊 Optimisation : Vos charges fixes sont lourdes (>40%). L'IA suggère de comparer vos contrats d'énergie et assurances pour libérer du pouvoir d'achat.";
-    else advice = "💎 Équilibre Parfait : Votre budget est sain. Vous avez une excellente capacité de financement pour vos projets futurs.";
+    // Détection d'aides
+    let helps = [];
+    if(state.data.revenus < 1900 && state.data.revenus > 600) helps.push("<b>✨ Prime d'Activité :</b> Vous semblez éligible (voir caf.fr).");
+    if(state.data.situation === 'etudiant') helps.push("<b>🎓 Aides CROUS :</b> Vérifiez vos droits aux bourses.");
+    if(state.data.situation === 'chomage') helps.push("<b>📉 France Travail :</b> Vérifiez vos aides à la mobilité.");
+    if(state.data.loyer > (state.data.revenus * 0.4)) helps.push("<b>🏠 APL :</b> Votre loyer est très lourd, demandez une réévaluation CAF.");
 
-    document.getElementById('ai-advice').innerText = advice;
+    document.getElementById('ai-advice').innerHTML = advice + "<br><br>" + 
+        (helps.length > 0 ? "<b>Aides suggérées :</b><br>" + helps.join('<br>') : "Gestion saine détectée.");
+
+    state.bilan = { res: reste, date: new Date().toLocaleDateString() };
 }
 
-// --- CLOUD SYNC ---
+// --- CLOUD ---
 async function saveBilanCloud() {
     const { error } = await _supabase.from('bilans').upsert({
         user_id: state.user.id,
         reste_a_vivre: state.bilan.res,
         data_json: state.bilan
     });
-    if(!error) { alert("Bilan archivé !"); showView('view-dashboard'); loadHistory(); }
+    if(!error) { alert("Analyse enregistrée !"); showView('view-dashboard'); loadHistory(); }
 }
 
 async function loadHistory() {
-    const { data } = await _supabase.from('bilans').select('*').eq('user_id', state.user.id).maybeSingle();
-    if(data) {
+    const { data } = await _supabase.from('bilans').select('*').eq('user_id', state.user.id).order('created_at', {ascending: false}).limit(1);
+    if(data && data.length > 0) {
         document.getElementById('history-container').innerHTML = `
-            <div class="res-mini-card" style="border-color:var(--primary); text-align:left; animation: fadeIn 1s ease;">
-                <p style="font-size:0.7rem; opacity:0.5">Dernière sauvegarde : ${data.data_json.date}</p>
-                <h3 style="color:var(--accent)">${data.reste_a_vivre}€ / mois</h3>
-            </div>
-        `;
+            <div class="card" style="margin-top:20px; border-left: 4px solid var(--accent);">
+                <small>Dernier bilan (${data[0].created_at.split('T')[0]})</small>
+                <h3>${data[0].reste_a_vivre}€ / mois</h3>
+            </div>`;
     }
 }
 
-// --- UTILS ---
 function showView(id) {
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById(id).classList.add('active');
 }
-function toggleAuthMode() {
-    state.isLogin = !state.isLogin;
-    document.getElementById('auth-title').innerText = state.isLogin ? "Accès Sécurisé" : "Rejoindre l'IA";
-    document.getElementById('btn-auth-primary').innerText = state.isLogin ? "Se connecter" : "Créer mon profil";
-    document.getElementById('auth-toggle').innerText = state.isLogin ? "Créer un compte" : "Déjà membre ? Se connecter";
-}
-function resetQuiz() { if(confirm("Annuler l'analyse ?")) { localStorage.removeItem(`draft_${state.user.id}`); showView('view-dashboard'); } }
 function handleLogout() { _supabase.auth.signOut(); location.reload(); }
-
+function resetQuiz() { showView('view-dashboard'); }
 window.onload = checkSession;
