@@ -3,109 +3,107 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EBudget AI - Coach Financier Premium</title>
+    <title>Coach Budget IA</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
-    <nav>
-        <div class="container nav-content">
-            <div class="logo">EBudget <span style="color:var(--accent)">AI</span></div>
-            <div id="auth-status" class="user-badge hidden">
-                <span id="display-email"></span>
-                <button onclick="handleLogout()" title="Déconnexion"><i class="fa-solid fa-right-from-bracket"></i></button>
+    <div class="app-container">
+        <!-- HEADER STATUS -->
+        <div id="auth-status" class="hidden">
+            <div class="user-info">
+                <div class="avatar"><i class="fa-solid fa-user-circle"></i></div>
+                <span id="display-email">Utilisateur</span>
             </div>
+            <button onclick="handleLogout()" class="btn-logout"><i class="fa-solid fa-power-off"></i></button>
         </div>
-    </nav>
 
-    <div class="container">
-        
         <!-- VUE AUTHENTIFICATION -->
         <div id="view-auth" class="view active">
             <div class="card">
                 <div class="auth-icon"><i class="fa-solid fa-fingerprint"></i></div>
                 <h2 id="auth-title">Accès Sécurisé</h2>
+                
+                <!-- BOUTON GOOGLE -->
+                <button onclick="signInWithGoogle()" class="btn btn-outline google-btn">
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google"> 
+                    Continuer avec Google
+                </button>
+
+                <div class="separator">OU</div>
+
                 <div class="input-group">
                     <input type="email" id="auth-email" placeholder="Email">
                     <input type="password" id="auth-password" placeholder="Mot de passe">
                 </div>
                 <button id="btn-auth-primary" class="btn btn-primary" onclick="processAuth()">Se connecter</button>
-                <div class="auth-footer">
-                    <p class="toggle-link" onclick="toggleAuthMode()" id="auth-toggle">Créer un compte</p>
-                    <p class="toggle-link" onclick="forgotPassword()">Mot de passe oublié ?</p>
-                </div>
+                <p class="toggle-link" onclick="toggleAuthMode()" id="auth-toggle">Pas encore de compte ? Créer un profil</p>
             </div>
         </div>
 
         <!-- VUE DASHBOARD -->
         <div id="view-dashboard" class="view">
-            <div class="card">
-                <h2 id="welcome-msg">Bonjour</h2>
-                <div id="history-container" class="history-slot">
-                    <p class="empty-state">Prêt pour une nouvelle analyse ?</p>
-                </div>
-                <button class="btn btn-primary" onclick="startQuiz()">
-                    <i class="fa-solid fa-bolt"></i> Démarrer l'Analyse
-                </button>
+            <div class="welcome-section">
+                <h1>Bonjour !</h1>
+                <p>Prêt pour votre analyse budgétaire ?</p>
+            </div>
+            <div class="card main-action" onclick="startQuiz()">
+                <div class="icon-circle"><i class="fa-solid fa-plus"></i></div>
+                <h3>Nouvelle Analyse</h3>
+                <p>Calculez votre reste à vivre réel</p>
+            </div>
+            <div id="history-container">
+                <!-- Historique chargé ici -->
             </div>
         </div>
 
         <!-- VUE QUIZ -->
         <div id="view-quiz" class="view">
-            <div class="progress-outer">
-                <div id="progress-bar"></div>
+            <div class="progress-container">
+                <div id="progress-bar" class="progress-bar"></div>
             </div>
-            <div class="card quiz-card">
-                <div id="q-icon" class="quiz-icon"></div>
-                <h3 id="q-text">Chargement...</h3>
-                <p id="q-desc" class="quiz-desc"></p>
-                
+            <div class="quiz-card">
+                <div id="q-icon" class="q-icon"></div>
+                <h2 id="q-text">Question</h2>
+                <p id="q-desc">Description</p>
+
+                <!-- INPUT NUMÉRIQUE -->
                 <div id="input-wrap" class="input-group">
-                    <input type="number" id="q-input" placeholder="0.00" inputmode="decimal">
+                    <input type="number" id="q-input" placeholder="0">
                 </div>
 
-                <div id="dual-btns" class="hidden">
-                    <button onclick="handleChoice(true)" class="btn btn-primary">Oui</button>
-                    <button onclick="handleChoice(false)" class="btn btn-outline">Non</button>
-                </div>
-                <button id="btn-next" class="btn btn-primary">Continuer</button>
-                <p onclick="resetQuiz()" class="reset-link">Annuler l'analyse</p>
+                <!-- BOUTONS DE CHOIX (Générés par JS) -->
+                <div id="dual-btns" class="button-stack hidden"></div>
+
+                <button id="btn-next" class="btn btn-primary">Suivant <i class="fa-solid fa-arrow-right"></i></button>
             </div>
         </div>
 
         <!-- VUE RÉSULTATS -->
         <div id="view-results" class="view">
-            <div class="card result-card">
-                <div class="res-header">
-                    <span>Libre mensuel estimé</span>
-                    <h1 id="res-total">0€</h1>
-                </div>
+            <div class="card res-card">
+                <p>Votre reste à vivre mensuel</p>
+                <h1 id="res-total">0€</h1>
                 
-                <div class="grid-res">
-                    <div class="res-mini-card">
-                        <i class="fa-solid fa-chart-line"></i>
-                        <span>Épargne cible</span>
-                        <b id="res-save" style="color:var(--accent)">0€</b>
+                <div class="res-grid">
+                    <div class="res-item">
+                        <small>Épargne conseillée</small>
+                        <p id="res-save">0€</p>
                     </div>
-                    <div class="res-mini-card">
-                        <i class="fa-solid fa-hand-holding-heart"></i>
-                        <span>Aides estimées</span>
-                        <b id="res-aides" style="color:var(--success)">0€</b>
+                    <div class="res-item">
+                        <small>Total Aides</small>
+                        <p id="res-aides">0€</p>
                     </div>
                 </div>
 
-                <div class="ai-box">
-                    <div class="ai-header">
-                        <i class="fa-solid fa-brain"></i>
-                        <span>Diagnostic IA</span>
-                    </div>
-                    <p id="ai-advice"></p>
+                <div id="ai-advice" class="ai-box">
+                    <!-- Conseils IA et aides ici -->
                 </div>
 
-                <button class="btn btn-primary" onclick="saveBilanCloud()">Sauvegarder l'analyse</button>
-                <button class="btn btn-outline" onclick="showView('view-dashboard')">Retour</button>
+                <button onclick="saveBilanCloud()" class="btn btn-primary">Enregistrer l'analyse</button>
+                <button onclick="resetQuiz()" class="btn btn-outline">Retour</button>
             </div>
         </div>
     </div>
