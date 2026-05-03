@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EBudget - Ton coach financier intelligent</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</head>
+<body>
+
+    <!-- Barre de Navigation Haute -->
+    <nav id="top-nav">
+        <div class="nav-content">
+            <div class="logo">E<span>Budget</span></div>
+            <button id="logout-btn" onclick="logout()" class="hidden logout-btn"><i class="fa-solid fa-power-off"></i> Déconnexion</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        
+        <!-- VUE 0 : LANDING PAGE -->
+        <section id="view-landing" class="view active">
+            <header class="hero">
+                <h1>Prends le contrôle de ton argent, <br><span>sans te prendre la tête.</span></h1>
+                <p>L'outil d'analyse budgétaire conçu pour les jeunes qui veulent kiffer sans finir dans le rouge.</p>
+                <!-- Ce bouton est maintenant l'unique porte d'entrée -->
+                <button onclick="showView('view-auth')" class="btn btn-primary main-cta">Démarrer gratuitement</button>
+            </header>
+
+            <div class="features-grid">
+                <div class="feat-card">
+                    <i class="fa-solid fa-shield-halved"></i>
+                    <h3>100% Sécurisé</h3>
+                    <p>Tes données sont chiffrées sur nos serveurs Cloud via Supabase. Aucun accès humain possible.</p>
+                </div>
+                <div class="feat-card">
+                    <i class="fa-solid fa-graduation-cap"></i>
+                    <h3>Spécial Jeunes</h3>
+                    <p>Calcul automatique des APL, bourses et budget courses optimisé pour les étudiants.</p>
+                </div>
+                <div class="feat-card">
+                    <i class="fa-solid fa-chart-line"></i>
+                    <h3>Anticipation</h3>
+                    <p>Définis ton épargne avant de dépenser. La règle du 70/30 appliquée simplement.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- VUE 1 : CONNEXION -->
+        <section id="view-auth" class="view">
+            <div class="card auth-card">
+                <h2>Connexion / Inscription</h2>
+                <p>Entre ton email pour synchroniser tes données.</p>
+                <div class="input-group">
+                    <input type="email" id="email" placeholder="Ton adresse email">
+                    <input type="password" id="pass" placeholder="Mot de passe">
+                </div>
+                <button onclick="handleLogin()" class="btn btn-primary">Accéder à mon espace</button>
+                <button onclick="showView('view-landing')" class="btn-link">Retour à l'accueil</button>
+            </div>
+        </section>
+
+        <!-- DASHBOARD -->
+        <section id="view-dashboard" class="view">
+            <div class="welcome">
+                <h2 id="user-status">Bonjour</h2>
+            </div>
+            <div id="last-record" class="card summary-card clickable" onclick="showLastResult()">
+                <p>Chargement du dernier bilan...</p>
+            </div>
+            <button onclick="startQuiz()" class="btn btn-primary main-action">Nouveau Bilan</button>
+        </section>
+
+        <!-- QUIZ -->
+        <section id="view-quiz" class="view">
+            <div class="progress-container"><div id="progress-bar"></div></div>
+            <div class="card quiz-card">
+                <div id="q-icon" class="q-icon"></div>
+                <h2 id="q-text"></h2>
+                <div id="input-wrap">
+                    <input type="number" id="q-input" placeholder="0"> <span class="unit">€</span>
+                </div>
+                <div id="quiz-btns">
+                    <button id="btn-next" class="btn btn-primary">Suivant</button>
+                    <div id="dual-btns" class="hidden">
+                        <button onclick="quizChoice(true)" class="btn btn-primary">OUI</button>
+                        <button onclick="quizChoice(false)" class="btn btn-secondary">NON</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- RÉSULTATS -->
+        <section id="view-results" class="view">
+            <div class="card result-hero">
+                <p>RESTE À VIVRE</p>
+                <h1 id="res-total">0€</h1>
+            </div>
+            <div id="res-details" class="details-list"></div>
+            <div class="action-footer">
+                <button onclick="saveAndExit()" class="btn btn-accent">Sauvegarder sur le Cloud</button>
+                <button onclick="showView('view-dashboard')" class="btn-link">Retour au menu</button>
+            </div>
+        </section>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
