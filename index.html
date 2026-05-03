@@ -3,111 +3,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EBudget AI | Minard Mallory</title>
+    <title>EBudget AI</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
-    <nav class="main-nav">
-        <div class="nav-container">
-            <div class="logo" onclick="goToLanding()">EBudget <span class="accent-text">AI</span></div>
-            <div id="auth-status" class="hidden user-badge">
-                <i class="fa-solid fa-circle-user"></i>
-                <span id="display-email"></span>
-                <button onclick="handleLogout()" class="logout-btn" title="Déconnexion">
-                    <i class="fa-solid fa-power-off"></i>
-                </button>
-            </div>
-        </div>
-    </nav>
+    <div id="auth-status" class="hidden">
+        <span id="display-email" style="font-size: 0.8rem; opacity: 0.7;"></span>
+        <button onclick="handleLogout()" class="btn-logout"><i class="fa-solid fa-power-off"></i></button>
+    </div>
+
+    <div class="main-title">EBudget <span>AI</span></div>
 
     <div class="app-container">
-        <!-- VUE 1 : ACCUEIL -->
-        <div id="view-landing" class="view active">
-            <div class="card hero">
-                <div class="hero-icon"><i class="fa-solid fa-robot"></i></div>
+        <div id="view-dashboard" class="view active">
+            <div class="card">
+                <div style="font-size: 3rem; margin-bottom: 20px;">🤖</div>
                 <h1>Analyse Budgétaire IA</h1>
-                <p>Optimisez vos finances avec précision et sécurité. Coach personnel intégré.</p>
-                <button class="btn-primary" onclick="checkAuthAndRedirect()">Démarrer l'expérience</button>
+                <p style="color: var(--text-dim);">Optimisez vos finances avec précision et sécurité. Coach personnel intégré.</p>
+                <button onclick="startQuiz()" class="btn-primary">Démarrer l'expérience</button>
             </div>
         </div>
 
-        <!-- VUE 2 : AUTHENTIFICATION -->
-        <div id="view-auth" class="view">
-            <div class="card">
-                <h2 id="auth-title">Accès Sécurisé</h2>
-                <div class="input-group">
-                    <input type="email" id="auth-email" placeholder="Email">
-                    <input type="password" id="auth-password" placeholder="Mot de passe">
-                </div>
-                <button id="btn-auth-primary" class="btn-primary" onclick="processAuth()">Se connecter</button>
-                <p class="toggle-link" onclick="toggleAuthMode()" id="auth-toggle">Pas encore de compte ? Créer un profil</p>
-            </div>
-        </div>
-
-        <!-- VUE 3 : DASHBOARD -->
-        <div id="view-dashboard" class="view">
-            <div class="welcome-section">
-                <h1>Tableau de bord</h1>
-                <p>Prêt pour votre analyse budgétaire ?</p>
-            </div>
-            <div class="card main-action" onclick="startQuiz()">
-                <div class="icon-circle"><i class="fa-solid fa-plus"></i></div>
-                <h3>Nouvelle Analyse</h3>
-                <p>Calculez votre reste à vivre réel</p>
-            </div>
-            <div id="history-container"></div>
-        </div>
-
-        <!-- VUE 4 : QUIZ (Flux Complet) -->
         <div id="view-quiz" class="view">
-            <div class="progress-container"><div id="progress-bar" class="progress-bar"></div></div>
             <div class="card">
-                <div id="q-icon" class="q-icon"></div>
-                <h2 id="q-text">Question</h2>
-                <p id="q-desc"></p>
+                <div id="q-icon" style="font-size: 2.5rem; color: var(--accent); margin-bottom: 15px;"></div>
+                <h2 id="q-text"></h2>
+                <p id="q-desc" style="color: var(--text-dim); margin-bottom: 20px;"></p>
                 
-                <div id="input-wrap" class="input-group">
-                    <div id="euro-wrap">
-                        <input type="number" id="q-input" placeholder="0">
-                    </div>
+                <div id="input-wrap" class="currency-input">
+                    <input type="number" id="q-input" placeholder="0">
+                    <span id="q-unit">€</span>
                 </div>
-
+                
                 <div id="dual-btns" class="button-stack hidden"></div>
-
-                <button id="btn-next" class="btn-primary" style="margin-top: 20px;">
-                    Suivant <i class="fa-solid fa-arrow-right"></i>
-                </button>
+                <button id="btn-next" class="btn-primary">Continuer</button>
             </div>
         </div>
 
-        <!-- VUE 5 : RÉSULTATS -->
         <div id="view-results" class="view">
-            <div class="card res-card">
-                <p>Votre reste à vivre mensuel</p>
-                <h1 id="res-total">0€</h1>
+            <div class="card">
+                <p style="color: var(--text-dim);">Reste à vivre mensuel</p>
+                <h1 id="res-total" style="font-size: 3.5rem; margin: 10px 0;">0€</h1>
+                <p id="res-daily" style="font-weight: bold; color: var(--accent);"></p>
                 
-                <div class="res-grid">
-                    <div class="res-item"><small>Épargne conseillée</small><p id="res-save">0€</p></div>
-                    <div class="res-item"><small>Total Aides</small><p id="res-aides">0€</p></div>
-                </div>
-
                 <div id="ai-advice" class="ai-box"></div>
 
-                <button onclick="saveBilanCloud()" class="btn-primary" style="margin-bottom:10px;">Enregistrer l'analyse</button>
-                <button onclick="goToLanding()" class="choice-btn">Retour à l'accueil</button>
+                <button onclick="saveAnalysis()" id="btn-save" class="btn-primary">Enregistrer la déclaration</button>
+                <button onclick="location.reload()" style="background:none; border:none; color:var(--text-dim); margin-top:20px; cursor:pointer;">Quitter</button>
             </div>
         </div>
     </div>
-
-    <footer class="legal-footer">
-        <p>&copy; 2024 - 2026 <b>Minard Mallory</b>. Tous droits réservés.</p>
-        <div class="legal-links">
-            <a href="#">Conditions d'Utilisation</a> | <a href="#">RGPD</a>
-        </div>
-    </footer>
 
     <script src="script.js"></script>
 </body>
