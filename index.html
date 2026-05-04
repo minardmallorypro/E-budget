@@ -3,58 +3,99 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EBudget AI</title>
+    <title>EBudget AI | Expert en Optimisation</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
-    <div id="auth-status" class="hidden">
-        <span id="display-email" style="font-size: 0.8rem; opacity: 0.7;"></span>
+    <!-- Header Utilisateur (Visible après connexion) -->
+    <div id="user-header" class="user-bar hidden">
+        <div class="user-info">
+            <i class="fa-solid fa-circle-user"></i>
+            <span id="display-email"></span>
+        </div>
         <button onclick="handleLogout()" class="btn-logout"><i class="fa-solid fa-power-off"></i></button>
     </div>
 
-    <div class="main-title">EBudget <span>AI</span></div>
-
     <div class="app-container">
-        <div id="view-dashboard" class="view active">
+        
+        <!-- VUE 1 : CONNEXION / INSCRIPTION -->
+        <div id="view-auth" class="view active">
+            <div class="main-title">EBudget <span>AI</span></div>
             <div class="card">
-                <div style="font-size: 3rem; margin-bottom: 20px;">🤖</div>
-                <h1>Analyse Budgétaire IA</h1>
-                <p style="color: var(--text-dim);">Optimisez vos finances avec précision et sécurité. Coach personnel intégré.</p>
-                <button onclick="startQuiz()" class="btn-primary">Démarrer l'expérience</button>
+                <h2 id="auth-title">Connexion</h2>
+                <!-- Message d'erreur rouge -->
+                <div id="auth-error" class="error-msg"></div>
+                
+                <div class="input-group">
+                    <div class="field">
+                        <i class="fa-solid fa-envelope"></i>
+                        <input type="email" id="auth-email" placeholder="votre@email.com">
+                    </div>
+                    <div class="field">
+                        <i class="fa-solid fa-lock"></i>
+                        <input type="password" id="auth-password" placeholder="Mot de passe">
+                    </div>
+                </div>
+
+                <button id="btn-auth" onclick="handleAuth()" class="btn-primary">Accéder à mon espace</button>
+                <p onclick="toggleAuthMode()" id="auth-switch" class="switch-text">Pas de compte ? Créer un profil</p>
             </div>
         </div>
 
+        <!-- VUE 2 : DASHBOARD -->
+        <div id="view-dashboard" class="view">
+            <div class="section-header">
+                <h2>Vos Analyses IA</h2>
+                <p>Gérez vos dossiers d'optimisation budgétaire.</p>
+            </div>
+            <div id="history-container" class="history-grid"></div>
+            <div class="fab-container">
+                <button onclick="startQuiz()" class="btn-primary">
+                    <i class="fa-solid fa-plus"></i> Nouvelle Analyse
+                </button>
+            </div>
+        </div>
+
+        <!-- VUE 3 : QUESTIONNAIRE INTELLIGENT -->
         <div id="view-quiz" class="view">
             <div class="card">
-                <div id="q-icon" style="font-size: 2.5rem; color: var(--accent); margin-bottom: 15px;"></div>
-                <h2 id="q-text"></h2>
-                <p id="q-desc" style="color: var(--text-dim); margin-bottom: 20px;"></p>
-                
-                <div id="input-wrap" class="currency-input">
+                <div class="progress-bar"><div id="progress-fill"></div></div>
+                <div id="q-icon" class="q-icon"></div>
+                <h2 id="q-text">Chargement...</h2>
+                <p id="q-desc"></p>
+
+                <!-- Zone Input (Nombre/Argent) -->
+                <div id="input-wrap" class="currency-input hidden">
                     <input type="number" id="q-input" placeholder="0">
                     <span id="q-unit">€</span>
                 </div>
-                
-                <div id="dual-btns" class="button-stack hidden"></div>
-                <button id="btn-next" class="btn-primary">Continuer</button>
+
+                <!-- Zone Sélection (Boutons Regions/Options) -->
+                <div id="button-stack" class="button-stack hidden"></div>
+
+                <div class="nav-btns">
+                    <button onclick="prevStep()" class="btn-secondary">Retour</button>
+                    <button id="btn-next" onclick="nextStep()" class="btn-primary hidden">Continuer</button>
+                </div>
             </div>
         </div>
 
+        <!-- VUE 4 : RÉSULTATS & IA ADVICE -->
         <div id="view-results" class="view">
-            <div class="card">
-                <p style="color: var(--text-dim);">Reste à vivre mensuel</p>
-                <h1 id="res-total" style="font-size: 3.5rem; margin: 10px 0;">0€</h1>
-                <p id="res-daily" style="font-weight: bold; color: var(--accent);"></p>
-                
+            <div class="card result-card">
+                <div class="res-header">
+                    <small>Reste à vivre mensuel</small>
+                    <h1 id="res-total">0€</h1>
+                </div>
                 <div id="ai-advice" class="ai-box"></div>
-
-                <button onclick="saveAnalysis()" id="btn-save" class="btn-primary">Enregistrer la déclaration</button>
-                <button onclick="location.reload()" style="background:none; border:none; color:var(--text-dim); margin-top:20px; cursor:pointer;">Quitter</button>
+                <button onclick="saveAnalysis()" id="btn-save" class="btn-primary">Enregistrer l'analyse</button>
+                <button onclick="showDashboard()" class="btn-secondary">Retour au menu</button>
             </div>
         </div>
+
     </div>
 
     <script src="script.js"></script>
