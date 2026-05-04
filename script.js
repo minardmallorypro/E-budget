@@ -2,32 +2,77 @@ const SUPABASE_URL = 'https://dsambzdkakpztmsfwxee.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_a37NCM5-9B2J8tcNYDn9kw_eaqC5o0A';
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-let state = { user: null, step: 0, steps: [], data: {} };
+let state = { user: null, step: 0, steps: [], data: {}, isSignup: false };
 
-async function checkSession() {
-    const { data: { session } } = await _supabase.auth.getSession();
-    if(session) {
-        state.user = session.user;
-        document.getElementById('display-email').innerText = state.user.email;
-        document.getElementById('auth-status').classList.remove('hidden');
+// --- AUTHENTIFICATION ---
+async function handleAuth() {
+    const email = document.getElementById('auth-email').value;
+    const password = document.getElementById('auth-password').value;
+    const btn = document.getElementById('btn-auth');
+    const errBox = document.getElementById('auth-error');
+
+    if (!email || !password) { errBox.innerText = "Champs requis."; errBox.style.display = 'block'; return; }
+    errBox.style.display = 'none';
+    btn.innerText = "Chargement...";
+    btn.disabled = true;
+
+    try {
+        const { data, error } = state.isSignup 
+            ? await _supabase.auth.signUp({ email, password })
+            : await _supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        if (state.isSignup) alert("Compte créé ! Vérifiez vos emails.");
+        else await checkSession();
+    } catch (err) {
+        errBox.innerText = "Erreur: " + err.message;
+        errBox.style.display = 'block';
+    } finally {
+        btn.disabled = false;
+        btn.innerText = state.isSignup ? "Créer mon compte" : "Accéder à mon espace";
     }
 }
 
+async function checkSession() {
+    const { data: { session } } = await _supabase.auth.getSession();
+    if (session) {
+        state.user = session.user;
+        document.getElementById('display-email').innerText = state.user.email;
+        document.getElementById('user-header').classList.remove('hidden');
+        showDashboard();
+    } else { showView('view-auth'); }
+}
+
+// --- DASHBOARD ---
+async function showDashboard() {
+    showView('view-dashboard');
+    const container = document.getElementById('history-container');
+    try {
+        const { data, error } = await _supabase.from('analyses').select('*').eq('user_id', state.user.id).order('created_at', { ascending: false });
+        if (error) throw error;
+        container.innerHTML = data.length > 0 ? data.map(item => `
+            <div class="history-card">
+                <div><strong>${item.resultat}€ Net restant</strong><br><small>${new Date(item.created_at).toLocaleDateString()}</small></div>
+                <i class="fa-solid fa-chevron-right"></i>
+            </div>
+        `).join('') : "<p>Aucune analyse enregistrée.</p>";
+    } catch (err) { container.innerHTML = "<p class='error-msg' style='display:block'>Erreur de table. Créez la table 'analyses' sur Supabase.</p>"; }
+}
+
+// --- MOTEUR IA COMPLET ---
 function startQuiz() {
-    state.data = {};
-    state.step = 0;
-    // Reconstruction de la liste complète des questions
+    state.data = {}; state.step = 0;
     state.steps = [
-        { id: 'foyer', text: "Composition du foyer", desc: "Combien de personnes sous votre toit ?", icon: 'fa-users', type: 'input', unit: 'pers' },
-        { id: 'situation', text: "Votre Situation", desc: "Statut professionnel actuel.", icon: 'fa-briefcase', type: 'select', 
-          options: [{val:'cdi', label:'CDI'}, {val:'cdd', label:'CDD/Intérim'}, {val:'etudiant', label:'Étudiant'}, {val:'chomage', label:'Recherche d\'emploi'}]},
-        { id: 'revenus', text: "Revenus fixes", desc: "Salaire net mensuel cumulé.", icon: 'fa-wallet', type: 'input', unit: '€' },
-        { id: 'aides', text: "Aides reçues", desc: "CAF, APL, bourses.", icon: 'fa-hand-holding-dollar', type: 'input', unit: '€' },
-        { id: 'loyer', text: "Loyer / Crédit", desc: "Frais de logement.", icon: 'fa-house', type: 'input', unit: '€' },
-        { id: 'courses', text: "Alimentation", desc: "Budget courses mensuel.", icon: 'fa-cart-shopping', type: 'input', unit: '€' },
-        { id: 'energie', text: "Énergie & Eau", desc: "Électricité, Gaz, Eau.", icon: 'fa-bolt', type: 'input', unit: '€' },
-        { id: 'abonnements', text: "Abonnements", desc: "Téléphone, Netflix, Sport.", icon: 'fa-tv', type: 'input', unit: '€' },
-        { id: 'credits', text: "Assurances & Crédits", desc: "Auto, Santé, Prêts.", icon: 'fa-shield', type: 'input', unit: '€' }
+        // Section : Profil & Revenus
+        { id: 'foyer', text: "Composition du foyer", desc: "Combien de personnes ?", type: 'input', unit: 'pers', icon: 'fa-users' },
+        { id: 'revenus', text: "Revenus fixes", desc: "Salaire total net mensuel.", type: 'input', unit: '€', icon: 'fa-wallet' },
+        { id: 'apl', text: "Aides (APL, CAF)", desc: "Montant total des aides reçues.", type: 'input', unit: '€', icon: 'fa-hand-holding-dollar' },
+        { id: 'dep', text: "Localisation", desc: "N° de département (ex: 75, 13, 59...)", type: 'input', unit: 'N°', icon: 'fa-map-location-dot' },
+        
+        // Section : Logement & Charges Fixes
+        { id: 'loyer', text: "Loyer / Crédit Immo", desc: "Coût de votre logement principal.", type: 'input', unit: '€', icon: 'fa-house' },
+        { id: 'elec', text: "Énergie (Elec/Gaz)", desc: "Montant moyen mensuel.", type: 'input', unit: '€', icon: 'fa-bolt' },
+        { id: 'tech', text: "Internet & Mobile", desc: "Cumul de vos abonnements tech.", type: 'input', unit: '€', icon: 'fa-wifi' },
+        { id: 'credits', text: "Autres Crédits", desc: "Conso, Auto, etc. (Si aucun, mettre 0).", type: 'input', unit: '€', icon: 'fa-credit-card' }
     ];
     showView('view-quiz');
     renderStep();
@@ -35,98 +80,101 @@ function startQuiz() {
 
 function renderStep() {
     const s = state.steps[state.step];
-    if(!s) return calculateResults();
+    if (!s) return calculateFinalIA();
 
-    document.getElementById('q-icon').innerHTML = `<i class="fa-solid ${s.icon}"></i>`;
+    document.getElementById('progress-fill').style.width = ((state.step / state.steps.length) * 100) + "%";
     document.getElementById('q-text').innerText = s.text;
     document.getElementById('q-desc').innerText = s.desc;
-    
+    document.getElementById('q-icon').innerHTML = `<i class="fa-solid ${s.icon || 'fa-question'}"></i>`;
+
     const inputWrap = document.getElementById('input-wrap');
-    const dualBtns = document.getElementById('dual-btns');
+    const stack = document.getElementById('button-stack');
     const btnNext = document.getElementById('btn-next');
 
     if (s.type === 'select') {
-        inputWrap.classList.add('hidden'); btnNext.classList.add('hidden');
-        dualBtns.classList.remove('hidden');
-        dualBtns.innerHTML = s.options.map(opt => `<button onclick="handleSelection('${s.id}', '${opt.val}')" class="select-btn">${opt.label}</button>`).join('');
+        inputWrap.classList.add('hidden'); btnNext.classList.add('hidden'); stack.classList.remove('hidden');
+        stack.innerHTML = s.options.map(o => `<button class="select-btn" onclick="saveStep('${s.id}', '${o.v}')">${o.l}</button>`).join('');
     } else {
-        inputWrap.classList.remove('hidden'); btnNext.classList.remove('hidden');
-        dualBtns.classList.add('hidden');
+        stack.classList.add('hidden'); inputWrap.classList.remove('hidden'); btnNext.classList.remove('hidden');
         document.getElementById('q-unit').innerText = s.unit;
-        const inp = document.getElementById('q-input');
-        inp.value = ""; inp.focus();
+        document.getElementById('q-input').value = "";
     }
 }
 
-function handleSelection(key, value) {
-    state.data[key] = value;
-    state.step++;
-    renderStep();
-}
-
-document.getElementById('btn-next').onclick = () => {
-    const val = parseInt(document.getElementById('q-input').value) || 0;
-    const currentStep = state.steps[state.step];
-    state.data[currentStep.id] = val;
-
-    // LOGIQUE MULTI-PERSONNES : On ajoute les questions d'âge dynamiquement
-    if(currentStep.id === 'foyer') {
-        for(let i = val; i >= 1; i--) {
-            state.steps.splice(state.step + 1, 0, {
-                id: `age_p${i}`, text: `Âge personne ${i}`, desc: `Âge pour le calcul des aides.`, icon: 'fa-cake-candles', type: 'input', unit: 'ans'
-            });
+function saveStep(id, val) {
+    state.data[id] = val;
+    // Ajout dynamique des âges si foyer > 0
+    if(id === 'foyer' && val > 0) {
+        for(let i=1; i<=val; i++) {
+            state.steps.splice(state.step + i, 0, { id: `age_${i}`, text: `Âge habitant ${i}`, desc: "Pour affiner le budget alimentaire.", type: 'input', unit: 'ans', icon: 'fa-cake-candles' });
         }
     }
     state.step++;
     renderStep();
-};
+}
 
-function calculateResults() {
+function nextStep() {
+    const val = parseInt(document.getElementById('q-input').value) || 0;
+    saveStep(state.steps[state.step].id, val);
+}
+
+// --- ANALYSE IA BUDGET (ULTRA PRÉCISE) ---
+function calculateFinalIA() {
     showView('view-results');
-    const totalIn = (state.data.revenus || 0) + (state.data.aides || 0);
-    const totalOut = (state.data.loyer || 0) + (state.data.courses || 0) + (state.data.energie || 0) + (state.data.abonnements || 0) + (state.data.credits || 0);
-    const reste = totalIn - totalOut;
+    const d = state.data;
     
-    document.getElementById('res-total').innerText = `${reste}€`;
-    document.getElementById('res-daily').innerText = `Reste : ${Math.round(reste/30)}€ / jour`;
+    // Calcul financier strict
+    const totalEntrees = parseInt(d.revenus) + parseInt(d.apl);
+    const totalChargesFixes = parseInt(d.loyer) + parseInt(d.elec) + parseInt(d.tech) + parseInt(d.credits);
+    const resteVrai = totalEntrees - totalChargesFixes;
     
-    // IA DE CONSEIL ET INVESTISSEMENT
-    let iaHtml = "<h3><i class='fa-solid fa-microchip'></i> Analyse IA</h3>";
+    document.getElementById('res-total').innerText = `${resteVrai}€`;
+
+    // Calcul budget courses (selon âge + département)
+    let budgetCourses = 0;
+    Object.keys(d).forEach(k => {
+        if(k.startsWith('age_')) {
+            const age = d[k];
+            if(age < 12) budgetCourses += 140;
+            else if(age < 18) budgetCourses += 200;
+            else budgetCourses += 250;
+        }
+    });
     
-    // Test APL Jeune (sur n'importe quelle personne du foyer)
-    let hasYoung = false;
-    for(let k in state.data) { if(k.startsWith('age_p') && state.data[k] < 26) hasYoung = true; }
+    const depCher = [75, 92, 94, 13, 06, 69];
+    if(depCher.includes(parseInt(d.dep))) budgetCourses *= 1.18;
+
+    let advice = `<h3><i class="fa-solid fa-robot"></i> Stratégie IA</h3>`;
+    advice += `<div class="tag-aid">🛒 <b>Courses :</b> Budget recommandé : <b>${Math.round(budgetCourses)}€</b>.</div>`;
     
-    if(hasYoung && state.data.revenus < 2000) iaHtml += "<div class='tag-aid'>💡 <b>APL Jeune :</b> Profil éligible détecté, vérifiez vos droits sur la CAF.</div>";
-    if(state.data.situation === 'etudiant') iaHtml += "<div class='tag-aid'>🎓 <b>Bourses :</b> Pensez à simuler vos droits au CROUS (échelon 0 bis à 7).</div>";
-    
-    if(reste > 150) {
-        iaHtml += "<p style='margin-top:10px;'>📈 <b>Investissement :</b> Avec " + reste + "€ de reste, placez <b>" + Math.round(reste*0.4) + "€/mois</b> sur un PEA ou une Assurance Vie.</p>";
+    // Le reste à vivre après nourriture
+    const disponibleApresNourriture = resteVrai - budgetCourses;
+
+    if(disponibleApresNourriture > 150) {
+        const invest = Math.round(disponibleApresNourriture * 0.35);
+        const plaisir = Math.round(disponibleApresNourriture * 0.40);
+        const epargne = Math.round(disponibleApresNourriture * 0.25);
+
+        advice += `<div class="tag-aid" style="border-color:#f1c40f">🎉 <b>Budget Plaisir :</b> Profitez de <b>${plaisir}€</b> ce mois-ci !</div>`;
+        advice += `<div class="tag-aid" style="border-color:var(--success)">📈 <b>Investissement :</b> Placez <b>${invest}€</b> (PEA/ETF).</div>`;
+        advice += `<div class="tag-aid">🛡️ <b>Sécurité :</b> Gardez <b>${epargne}€</b> en épargne de précaution.</div>`;
     } else {
-        iaHtml += "<p style='color:#ef4444;'>⚠️ <b>Alerte :</b> Votre marge est faible. Réduisez les 'Abonnements' pour regagner de l'oxygène.</p>";
+        advice += `<div class="tag-aid" style="border-color:var(--error)">⚠️ <b>Alerte IA :</b> Après nourriture, il vous reste <b>${disponibleApresNourriture}€</b>. Évitez les dépenses plaisirs non essentielles ce mois-ci.</div>`;
     }
 
-    document.getElementById('ai-advice').innerHTML = iaHtml;
+    document.getElementById('ai-advice').innerHTML = advice;
 }
 
 async function saveAnalysis() {
-    if(!state.user) return alert("Veuillez vous connecter.");
     const btn = document.getElementById('btn-save');
-    btn.innerText = "Enregistrement...";
-    
+    btn.innerText = "Sauvegarde...";
     const { error } = await _supabase.from('analyses').insert([{
         user_id: state.user.id,
         data: state.data,
-        resultat: document.getElementById('res-total').innerText.replace('€','')
+        resultat: parseInt(document.getElementById('res-total').innerText)
     }]);
-
-    if(!error) {
-        btn.innerText = "Déclaration Enregistrée !";
-        btn.style.background = "#10b981";
-    } else {
-        alert("Erreur de sauvegarde : " + error.message);
-        btn.innerText = "Réessayer";
-    }
+    if(!error) { alert("Analyse sauvegardée !"); showDashboard(); }
+    else { alert("Erreur."); btn.innerText = "Enregistrer l'analyse"; }
 }
 
 function showView(id) {
@@ -134,5 +182,12 @@ function showView(id) {
     document.getElementById(id).classList.add('active');
 }
 
+function toggleAuthMode() {
+    state.isSignup = !state.isSignup;
+    document.getElementById('auth-title').innerText = state.isSignup ? "Créer un compte" : "Connexion";
+}
+
 function handleLogout() { _supabase.auth.signOut().then(() => location.reload()); }
+function prevStep() { if(state.step > 0) { state.step--; renderStep(); } else { showDashboard(); } }
+
 window.onload = checkSession;
